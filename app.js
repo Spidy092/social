@@ -25,6 +25,7 @@ app.use(helmet({
 }));
 
 // Body parsers
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -38,7 +39,8 @@ app.set('trust proxy', 1);
 app.use(session({
   store: new pgSession({
     pool: pool,
-    tableName: 'session'
+    tableName: 'session',
+    createTableIfMissing: true
   }),
   secret: process.env.SESSION_SECRET,
   resave: false,
