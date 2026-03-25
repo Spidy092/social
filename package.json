@@ -1,7 +1,10 @@
 {
-  "name": "post-mutiple",
+  "name": "social-poster",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "app.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "db:migrate": "node src/db/migrate.js",
     "start": "node app.js",

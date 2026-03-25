@@ -29,14 +29,11 @@ test-phase4.js
 test_db.js
 test_render.js
 social-poster-architecture-v2.md
+*.sqlite
+*.db
+uploads/
 
 # Agent/Tooling
 .agent/
 brain/
 logs/
-.env
-.env
-node_modules/
-.env
-.agent
-node_modules/
