@@ -1,0 +1,95 @@
+<div class="max-w-5xl mx-auto">
+  <form action="/posts" method="POST" enctype="multipart/form-data" class="space-y-8">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      
+      <!-- Left Column: Media Upload -->
+      <div class="lg:col-span-1">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <label class="block text-sm font-semibold text-slate-700 mb-4">Media Content</label>
+          
+          <div id="drop-zone" class="relative group cursor-pointer border-2 border-dashed border-slate-200 rounded-2xl p-4 transition-all hover:border-slate-900 aspect-square flex flex-col items-center justify-center text-center overflow-hidden">
+            <input type="file" name="media" id="media-input" required accept="image/*,video/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+            
+            <div id="preview-container" class="hidden absolute inset-0 z-0 bg-white">
+                <!-- Preview will be inserted here -->
+            </div>
+
+            <div id="upload-prompt" class="space-y-3 z-0">
+              <div class="w-12 h-12 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center mx-auto group-hover:bg-slate-900 group-hover:text-white transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+              </div>
+              <p class="text-xs font-medium text-slate-500">Click or drag to upload<br>Image or Video (max 500MB)</p>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-3 text-center">Supports: JPG, PNG, WEBP, MP4, MOV</p>
+        </div>
+      </div>
+
+      <!-- Right Column: Content & Platforms -->
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Base Caption -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <div class="flex items-center justify-between mb-4">
+              <label class="block text-sm font-semibold text-slate-700">Base Caption</label>
+              <button type="button" id="ai-caption-btn" class="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-900 rounded-lg hover:bg-slate-200 transition flex items-center">
+                  <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                  </svg>
+                  Generate AI Captions
+              </button>
+          </div>
+          <textarea name="caption" rows="4" placeholder="Write your core message here..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none text-sm transition-all"></textarea>
+        </div>
+
+        <!-- Platforms -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <label class="block text-sm font-semibold text-slate-700 mb-6">Select Platforms</label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+            <% ['instagram', 'facebook', 'linkedin', 'youtube'].forEach(p => { %>
+                <label class="relative cursor-pointer group">
+                    <input type="checkbox" name="platforms" value="<%= p %>" class="peer sr-only platform-toggle" data-platform="<%= p %>">
+                    <div class="h-10 flex items-center justify-center border border-slate-200 rounded-xl peer-checked:border-slate-900 peer-checked:bg-slate-900 peer-checked:text-white transition group-hover:bg-slate-50 peer-checked:group-hover:bg-slate-900">
+                        <span class="text-xs font-bold capitalize"><%= p %></span>
+                    </div>
+                </label>
+            <% }) %>
+          </div>
+
+          <!-- Platform Specific Captions -->
+          <div id="platform-captions" class="space-y-6">
+              <% ['instagram', 'facebook', 'linkedin', 'youtube'].forEach(p => { %>
+                <div id="caption-box-<%= p %>" class="hidden platform-caption-box space-y-2 animate-in fade-in slide-in-from-top-2">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"><%= p %> Caption</span>
+                    </div>
+                    <textarea name="caption_<%= p %>" rows="3" class="w-full px-4 py-3 bg-slate-50 rounded-xl border border-transparent focus:bg-white focus:border-slate-900 focus:ring-0 outline-none text-sm transition-all"></textarea>
+                </div>
+              <% }) %>
+          </div>
+        </div>
+
+        <!-- Scheduling -->
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 bg-slate-50 text-slate-500 rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Schedule Time</label>
+                    <p class="text-xs text-slate-500 mt-1">Leave empty to post immediately</p>
+                </div>
+            </div>
+            <input type="datetime-local" name="scheduled_at" class="bg-slate-50 px-4 py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-slate-900 transition-all text-sm outline-none">
+        </div>
+
+        <button type="submit" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 hover:translate-y-[-2px] active:translate-y-0 transition-all">
+          Upload Content
+        </button>
+      </div>
+    </div>
+  </form>
+</div>

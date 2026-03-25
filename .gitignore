@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+/dist
+/build
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / Editor folders
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS related files
+.DS_Store
+Thumbs.db
+
+# Project specific
+test-phase4.js
+test_db.js
+test_render.js
+social-poster-architecture-v2.md
+
+# Agent/Tooling
+.agent/
+brain/
+logs/
+.env
+.env
+node_modules/
+.env
+.agent
+node_modules/

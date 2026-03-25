@@ -1,0 +1,102 @@
+<div class="space-y-6">
+  <div class="flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-gray-900">Analytics</h1>
+    <form action="/analytics/sync" method="POST">
+      <input type="hidden" name="_method" value="POST">
+      <button type="submit" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700">
+        Refresh Stats
+      </button>
+    </form>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow">
+      <h3 class="text-sm font-medium text-gray-500">Total Likes</h3>
+      <p class="mt-2 text-3xl font-bold text-gray-900"><%= stats.total_likes || 0 %></p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow">
+      <h3 class="text-sm font-medium text-gray-500">Total Views</h3>
+      <p class="mt-2 text-3xl font-bold text-gray-900"><%= stats.total_views || 0 %></p>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow">
+      <h3 class="text-sm font-medium text-gray-500">Total Reach</h3>
+      <p class="mt-2 text-3xl font-bold text-gray-900"><%= stats.total_reach || 0 %></p>
+    </div>
+  </div>
+
+  <!-- Per-Platform Performance -->
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-medium text-gray-900">Platform Performance</h2>
+    </div>
+    <table class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Platform</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posts</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Likes</th>
+          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Views</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% platformStats.forEach(stat => { %>
+          <tr>
+            <td class="px-6 py-4 whitespace-nowrap">
+              <span class="capitalize text-sm font-medium text-gray-900"><%= stat.platform %></span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= stat.total_posts %></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= stat.avg_likes || 0 %></td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= stat.avg_views || 0 %></td>
+          </tr>
+        <% }) %>
+        <% if(platformStats.length === 0) { %>
+          <tr>
+            <td colspan="4" class="px-6 py-4 text-center text-sm text-gray-500">No platform data available.</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Recent Posts Engagement -->
+  <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-medium text-gray-900">Recent Posts Engagement</h2>
+    </div>
+    <div class="divide-y divide-gray-200">
+      <% recentPosts.forEach(post => { %>
+        <div class="p-6 flex items-center space-x-4">
+          <% if(post.media_url.endsWith('.mp4')){ %>
+            <video src="<%= post.media_url %>" class="w-16 h-16 object-cover rounded-md"></video>
+          <% } else { %>
+            <img src="<%= post.media_url %>" alt="Post thumbnail" class="w-16 h-16 object-cover rounded-md">
+          <% } %>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">
+              <%= post.caption_original || 'No caption' %>
+            </p>
+            <p class="text-sm text-gray-500 capitalize"><%= post.platform %></p>
+          </div>
+          <div class="flex space-x-6 text-sm text-gray-500">
+            <div class="text-center">
+              <span class="block font-medium text-gray-900"><%= post.likes %></span>
+              Likes
+            </div>
+            <div class="text-center">
+              <span class="block font-medium text-gray-900"><%= post.comments %></span>
+              Comments
+            </div>
+            <div class="text-center">
+              <span class="block font-medium text-gray-900"><%= post.views %></span>
+              Views
+            </div>
+          </div>
+        </div>
+      <% }) %>
+      <% if(recentPosts.length === 0) { %>
+        <div class="px-6 py-4 text-center text-sm text-gray-500">No recent posts available.</div>
+      <% } %>
+    </div>
+  </div>
+</div>
