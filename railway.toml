@@ -2,5 +2,5 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "npm run db:migrate && npm start"
+startCommand = "npm run db:migrate && node src/db/seed.js && npm start"
 healthcheckPath = "/health"
