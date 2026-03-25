@@ -80,6 +80,15 @@ const { router: platformsRoutes, callbackRouter: platformCallbacks } = require('
 const captionsRoutes = require('./src/routes/captions');
 const analyticsRoutes = require('./src/routes/analytics');
 
+// Health check — must be before requireLogin
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    ts: new Date(),
+    env: process.env.NODE_ENV
+  });
+});
+
 // Public routes
 app.use('/', authRoutes);
 app.use('/platforms', platformCallbacks); // OAuth callbacks (no auth required)
@@ -91,15 +100,6 @@ app.use('/', postsRoutes);
 app.use('/platforms', platformsRoutes);
 app.use('/captions', captionsRoutes);
 app.use('/analytics', analyticsRoutes);
-
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    ts: new Date(),
-    env: process.env.NODE_ENV
-  });
-});
 
 // Start scheduler
 const { startScheduler } = require('./src/scheduler/postScheduler');
