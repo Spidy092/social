@@ -70,7 +70,7 @@ router.get('/youtube/connect', (req, res) => {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
     redirect_uri: process.env.GOOGLE_REDIRECT_URI,
-    scope: 'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly',
+    scope: 'openid email profile', // Reduced scopes for debugging
     response_type: 'code',
     access_type: 'offline',
     prompt: 'consent',
