@@ -19,7 +19,7 @@ app.use(helmet({
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
       "script-src": ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com"],
       "script-src-attr": ["'unsafe-inline'"],
-      "img-src": ["'self'", "data:", "https://res.cloudinary.com"],
+      "img-src": ["'self'", "data:", "blob:", "https://res.cloudinary.com"],
     },
   },
 }));
@@ -74,13 +74,15 @@ app.set('layout', 'layouts/main');
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
-const { requireLogin } = require('./src/middleware/auth');
+const { requireLogin, requireAdmin } = require('./src/middleware/auth');
 const authRoutes = require('./src/routes/auth');
 const dashboardRoutes = require('./src/routes/dashboard');
 const postsRoutes = require('./src/routes/posts');
 const { router: platformsRoutes, callbackRouter: platformCallbacks } = require('./src/routes/platforms');
 const captionsRoutes = require('./src/routes/captions');
 const analyticsRoutes = require('./src/routes/analytics');
+const adminRoutes = require('./src/routes/admin');
+const mediaRoutes = require('./src/routes/media');
 
 // Health check — must be before requireLogin
 app.get('/health', (req, res) => {
@@ -102,6 +104,8 @@ app.use('/', postsRoutes);
 app.use('/platforms', platformsRoutes);
 app.use('/captions', captionsRoutes);
 app.use('/analytics', analyticsRoutes);
+app.use('/media', mediaRoutes);
+app.use('/admin', requireAdmin, adminRoutes);
 
 // Start scheduler
 const { startScheduler } = require('./src/scheduler/postScheduler');

@@ -34,7 +34,7 @@
           bgLight: 'bg-gradient-to-br from-sky-50 to-cyan-50',
           borderColor: 'border-sky-200',
           icon: '💼',
-          connectNote: 'Share posts to your LinkedIn profile',
+          connectNote: 'Share posts to your LinkedIn profile (videos shared as links, not native uploads)',
           connectUrl: '/platforms/linkedin/connect'
         },
         youtube: {
@@ -45,10 +45,19 @@
           icon: '🎬',
           connectNote: 'Upload videos to your YouTube channel',
           connectUrl: '/platforms/youtube/connect'
+        },
+        threads: {
+          name: 'Threads',
+          color: 'from-gray-800 to-black',
+          bgLight: 'bg-gradient-to-br from-gray-50 to-slate-50',
+          borderColor: 'border-gray-300',
+          icon: '🧵',
+          connectNote: 'Post text, images, videos, and carousels to Threads',
+          connectUrl: '/platforms/threads/connect'
         }
       };
 
-      const platforms = ['instagram', 'facebook', 'linkedin', 'youtube'];
+      const platforms = ['instagram', 'facebook', 'linkedin', 'youtube', 'threads'];
     %>
 
     <% platforms.forEach(platform => {

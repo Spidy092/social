@@ -61,4 +61,19 @@ async function postContent(connection, { mediaUrl, mediaType, caption }) {
   return { platformPostId: videoId };
 }
 
-module.exports = { postContent };
+async function fetchAnalytics(connection, platformPostId) {
+  const { data } = await axios.get('https://www.googleapis.com/youtube/v3/videos', {
+    params: { part: 'statistics', id: platformPostId },
+    headers: { Authorization: `Bearer ${connection.access_token}` },
+  });
+  const stats = data.items?.[0]?.statistics || {};
+  return {
+    likes: Number(stats.likeCount || 0),
+    comments: Number(stats.commentCount || 0),
+    shares: 0,
+    views: Number(stats.viewCount || 0),
+    reach: 0,
+  };
+}
+
+module.exports = { postContent, fetchAnalytics };

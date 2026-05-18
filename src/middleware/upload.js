@@ -27,6 +27,7 @@ const upload = multer({
   fileFilter,
   limits: {
     fileSize: 500 * 1024 * 1024, // 500MB
+    files: 10, // max 10 files per request
   }
 });
 

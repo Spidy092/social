@@ -1,52 +1,46 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Media Preview
+    // Multi-file preview
     const mediaInput = document.getElementById('media-input');
-    const previewContainer = document.getElementById('preview-container');
-    const uploadPrompt = document.getElementById('upload-prompt');
-
     if (mediaInput) {
-        mediaInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    previewContainer.innerHTML = '';
-                    previewContainer.classList.remove('hidden');
-                    uploadPrompt.classList.add('hidden');
+        mediaInput.addEventListener('change', function() {
+            const preview = document.getElementById('file-preview');
+            const prompt = document.getElementById('upload-prompt');
+            if (!preview || !prompt) return;
 
+            preview.innerHTML = '';
+            if (this.files.length > 0) {
+                preview.classList.remove('hidden');
+                prompt.innerHTML = `<p class="text-xs font-medium text-slate-700">${this.files.length} file(s) selected</p>`;
+
+                Array.from(this.files).slice(0, 10).forEach(file => {
+                    const div = document.createElement('div');
+                    div.className = 'aspect-square rounded-lg overflow-hidden bg-slate-100 border';
                     if (file.type.startsWith('image/')) {
                         const img = document.createElement('img');
-                        img.src = event.target.result;
+                        img.src = URL.createObjectURL(file);
                         img.className = 'w-full h-full object-cover';
-                        previewContainer.appendChild(img);
-                    } else if (file.type.startsWith('video/')) {
-                        const video = document.createElement('video');
-                        video.src = event.target.result;
-                        video.controls = true;
-                        video.className = 'w-full h-full object-cover';
-                        previewContainer.appendChild(video);
+                        div.appendChild(img);
+                    } else {
+                        div.innerHTML = '<div class="w-full h-full flex items-center justify-center text-slate-400"><svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 15l5.197-3L10 9v6z"/></svg></div>';
                     }
-                };
-                reader.readAsDataURL(file);
+                    preview.appendChild(div);
+                });
+            } else {
+                preview.classList.add('hidden');
             }
         });
     }
 
     // Platform Caption Toggles
-    const toggles = document.querySelectorAll('.platform-toggle');
-    toggles.forEach(toggle => {
+    document.querySelectorAll('.platform-toggle').forEach(toggle => {
         toggle.addEventListener('change', (e) => {
             const platform = e.target.getAttribute('data-platform');
             const box = document.getElementById(`caption-box-${platform}`);
-            if (e.target.checked) {
-                box.classList.remove('hidden');
-            } else {
-                box.classList.add('hidden');
-            }
+            if (box) box.classList.toggle('hidden', !e.target.checked);
         });
     });
 
-    // AI Caption Button (Stub for Phase 6)
+    // AI Caption Button
     const aiBtn = document.getElementById('ai-caption-btn');
     if (aiBtn) {
         aiBtn.addEventListener('click', async () => {
@@ -67,15 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ caption, platforms: selectedPlatforms })
                 });
                 const data = await res.json();
-                
                 if (data.error) throw new Error(data.error);
-                
+
                 selectedPlatforms.forEach(p => {
-                    const textarea = document.querySelector(`textarea[name="caption_${p}"]`);
-                    // Ensure the caption box is visible (it should be if mapped to the checked platform toggle)
                     const box = document.getElementById(`caption-box-${p}`);
                     if (box) box.classList.remove('hidden');
-
+                    const textarea = document.querySelector(`textarea[name="caption_${p}"]`);
                     if (textarea && data.captions && data.captions[p]) {
                         textarea.value = data.captions[p];
                     }

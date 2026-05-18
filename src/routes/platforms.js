@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
       [req.session.userId]
     );
 
-    const platforms = ['instagram', 'facebook', 'linkedin', 'youtube'];
+    const platforms = ['instagram', 'facebook', 'linkedin', 'youtube', 'threads'];
     const connectionMap = {};
     platforms.forEach(p => {
       const conn = connections.find(c => c.platform === p);
@@ -70,7 +70,7 @@ router.get('/youtube/connect', (req, res) => {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID,
     redirect_uri: process.env.GOOGLE_REDIRECT_URI,
-    scope: 'openid email profile', // Reduced scopes for debugging
+    scope: 'openid email profile https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.force-ssl',
     response_type: 'code',
     access_type: 'offline',
     prompt: 'consent',
@@ -79,11 +79,24 @@ router.get('/youtube/connect', (req, res) => {
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
 });
 
+router.get('/threads/connect', (req, res) => {
+  const state = generateState();
+  req.session.oauthState = state;
+  const params = new URLSearchParams({
+    client_id: process.env.THREADS_APP_ID,
+    redirect_uri: process.env.THREADS_REDIRECT_URI,
+    scope: 'threads_basic,threads_content_publish',
+    response_type: 'code',
+    state
+  });
+  res.redirect(`https://threads.net/oauth/authorize?${params}`);
+});
+
 // ─── DELETE /platforms/:platform/disconnect ───────────────
 
 router.delete('/:platform/disconnect', async (req, res) => {
   const { platform } = req.params;
-  const allowed = ['instagram', 'facebook', 'linkedin', 'youtube'];
+  const allowed = ['instagram', 'facebook', 'linkedin', 'youtube', 'threads'];
   if (!allowed.includes(platform)) {
     req.flash('error', 'Unknown platform');
     return res.redirect('/platforms');
@@ -178,15 +191,15 @@ callbackRouter.get('/meta/callback', async (req, res) => {
     let fbUsername = userRes.data.name || 'Facebook User';
     let igUsername = null;
 
-    // Upsert Facebook connection
+    // Upsert Facebook connection (store longToken as refresh_token for re-exchange)
     if (pagesRes.data.data && pagesRes.data.data.length > 0) {
       const page = pagesRes.data.data[0];
       await db.query(
         `INSERT INTO platform_connections (user_id, platform, access_token, refresh_token, token_expires_at, platform_user_id, platform_username)
-         VALUES ($1, 'facebook', $2, NULL, $3, $4, $5)
+         VALUES ($1, 'facebook', $2, $3, $4, $5, $6)
          ON CONFLICT (user_id, platform) DO UPDATE SET
-           access_token = $2, token_expires_at = $3, platform_user_id = $4, platform_username = $5`,
-        [userId, page.access_token, longExpiresAt, page.id, page.name || fbUsername]
+           access_token = $2, refresh_token = $3, token_expires_at = $4, platform_user_id = $5, platform_username = $6`,
+        [userId, page.access_token, longToken, longExpiresAt, page.id, page.name || fbUsername]
       );
     }
 
@@ -208,10 +221,10 @@ callbackRouter.get('/meta/callback', async (req, res) => {
 
           await db.query(
             `INSERT INTO platform_connections (user_id, platform, access_token, refresh_token, token_expires_at, platform_user_id, platform_username)
-             VALUES ($1, 'instagram', $2, NULL, $3, $4, $5)
+             VALUES ($1, 'instagram', $2, $3, $4, $5, $6)
              ON CONFLICT (user_id, platform) DO UPDATE SET
-               access_token = $2, token_expires_at = $3, platform_user_id = $4, platform_username = $5`,
-            [userId, longToken, longExpiresAt, igId, igUsername]
+               access_token = $2, refresh_token = $3, token_expires_at = $4, platform_user_id = $5, platform_username = $6`,
+            [userId, longToken, longToken, longExpiresAt, igId, igUsername]
           );
         }
       } catch (igErr) {
@@ -342,6 +355,71 @@ callbackRouter.get('/youtube/callback', async (req, res) => {
   } catch (err) {
     console.error('[platforms] YouTube callback error:', err.response?.data || err.message);
     req.flash('error', 'Failed to connect YouTube. Check app credentials.');
+  }
+
+  res.redirect('/platforms');
+});
+
+// ─── Threads callback ────────────────────────────────────
+
+callbackRouter.get('/threads/callback', async (req, res) => {
+  const { code, state, error: oauthError } = req.query;
+
+  if (oauthError) {
+    req.flash('error', `Threads authorization failed: ${oauthError}`);
+    return res.redirect('/platforms');
+  }
+
+  if (!state || state !== req.session.oauthState) {
+    req.flash('error', 'OAuth state mismatch. Please try again.');
+    return res.redirect('/platforms');
+  }
+  delete req.session.oauthState;
+
+  try {
+    // Exchange code for short-lived token
+    const tokenRes = await axios.post('https://graph.threads.net/oauth/access_token', null, {
+      params: {
+        client_id: process.env.THREADS_APP_ID,
+        client_secret: process.env.THREADS_APP_SECRET,
+        grant_type: 'authorization_code',
+        redirect_uri: process.env.THREADS_REDIRECT_URI,
+        code
+      }
+    });
+
+    const { access_token: shortToken, user_id: threadsUserId } = tokenRes.data;
+
+    // Exchange for long-lived token
+    const longRes = await axios.get('https://graph.threads.net/access_token', {
+      params: {
+        grant_type: 'th_exchange_token',
+        client_secret: process.env.THREADS_APP_SECRET,
+        access_token: shortToken
+      }
+    });
+
+    const longToken = longRes.data.access_token || shortToken;
+    const expiresAt = new Date(Date.now() + (longRes.data.expires_in || 5184000) * 1000);
+
+    // Get profile info
+    const profileRes = await axios.get(`https://graph.threads.net/v1.0/me`, {
+      params: { fields: 'id,username', access_token: longToken }
+    });
+    const username = profileRes.data.username || 'Threads User';
+
+    await db.query(
+      `INSERT INTO platform_connections (user_id, platform, access_token, refresh_token, token_expires_at, platform_user_id, platform_username)
+       VALUES ($1, 'threads', $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id, platform) DO UPDATE SET
+         access_token = $2, refresh_token = $3, token_expires_at = $4, platform_user_id = $5, platform_username = $6`,
+      [req.session.userId, longToken, longToken, expiresAt, threadsUserId || profileRes.data.id, username]
+    );
+
+    req.flash('success', `Threads connected as @${username}`);
+  } catch (err) {
+    console.error('[platforms] Threads callback error:', err.response?.data || err.message);
+    req.flash('error', 'Failed to connect Threads. Check app credentials.');
   }
 
   res.redirect('/platforms');

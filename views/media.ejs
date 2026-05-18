@@ -1,0 +1,31 @@
+<div class="max-w-6xl mx-auto">
+  <h1 class="text-2xl font-bold mb-6">Media Library</h1>
+
+  <% if (items.length === 0) { %>
+    <div class="bg-white rounded-2xl p-12 text-center border border-slate-100">
+      <p class="text-slate-400">No media uploaded yet. Upload media when creating a post.</p>
+    </div>
+  <% } else { %>
+    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4">
+      <% items.forEach(item => { %>
+        <div class="relative group bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <% if (item.media_type === 'image') { %>
+            <img src="<%= item.url %>" class="w-full aspect-square object-cover" alt="<%= item.original_name %>">
+          <% } else { %>
+            <div class="w-full aspect-square bg-slate-100 flex items-center justify-center">
+              <svg class="w-10 h-10 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M10 15l5.197-3L10 9v6z"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+            </div>
+          <% } %>
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+            <form action="/media/<%= item.id %>/delete" method="POST" onsubmit="return confirm('Delete this media?')">
+              <button type="submit" class="px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg">Delete</button>
+            </form>
+          </div>
+          <div class="p-2">
+            <p class="text-[10px] text-slate-500 truncate"><%= item.original_name || 'Untitled' %></p>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } %>
+</div>

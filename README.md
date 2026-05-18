@@ -42,6 +42,24 @@ Visit [http://localhost:3000](http://localhost:3000) — you'll be redirected to
 
 ---
 
+
+## EC2 one-shot deployment
+
+For a single-server deployment with Node.js, PostgreSQL, Nginx, PM2, and Let's Encrypt on the same EC2 instance:
+
+```bash
+cp .env.example .env
+# fill in your application secrets in .env first
+DOMAIN=app.example.com \
+LETSENCRYPT_EMAIL=you@example.com \
+DB_PASSWORD='choose-a-strong-password' \
+sudo -E ./setup.sh
+```
+
+The script supports Ubuntu/Debian and Amazon Linux 2023. It installs system packages, creates the local PostgreSQL database, updates the production `DATABASE_URL`, runs migrations, starts the app with PM2, configures Nginx, and obtains HTTPS when `ENABLE_SSL=true`.
+
+Before running it with HTTPS enabled, point your domain's DNS A record at the EC2 public IP and allow inbound ports `22`, `80`, and `443` in the EC2 security group.
+
 ## Deploying to Railway
 
 ### 1. Create a Railway project

@@ -22,13 +22,19 @@
         <% posts.forEach(post => { %>
           <tr class="hover:bg-slate-50/50 transition">
             <td class="px-6 py-4">
-              <div class="h-16 w-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center">
-                <% if (post.media_type === 'image') { %>
-                  <img src="<%= post.media_url %>" class="h-full w-full object-cover">
-                <% } else { %>
-                  <div class="p-2 text-slate-400">
-                    <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M10 15l5.197-3L10 9v6z"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+              <div class="flex -space-x-2">
+                <% const mediaList = post.media && post.media.length > 0 ? post.media : [{url: post.media_url, media_type: post.media_type}]; %>
+                <% mediaList.slice(0, 3).forEach((m, i) => { %>
+                  <div class="h-14 w-14 rounded-lg overflow-hidden bg-slate-100 border-2 border-white flex items-center justify-center" style="z-index: <%= 3 - i %>">
+                    <% if (m.media_type === 'image') { %>
+                      <img src="<%= m.url %>" class="h-full w-full object-cover">
+                    <% } else { %>
+                      <svg class="h-5 w-5 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M10 15l5.197-3L10 9v6z"/></svg>
+                    <% } %>
                   </div>
+                <% }) %>
+                <% if (mediaList.length > 3) { %>
+                  <div class="h-14 w-14 rounded-lg bg-slate-200 border-2 border-white flex items-center justify-center text-xs font-bold text-slate-600">+<%= mediaList.length - 3 %></div>
                 <% } %>
               </div>
             </td>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Social Poster</title>
+    <title>Register - Social Poster</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
@@ -11,14 +11,14 @@
         <div class="p-8 pb-0 text-center">
             <div class="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto mb-6 rotate-3 shadow-lg shadow-slate-200">
                 <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A10.003 10.003 0 014.243 4.243m1.457 1.457L10.954 11m4.508 4.508L20 18.046m-1.457-1.457L14.046 12m.054-.09A10.003 10.003 0 0119.757 19.757m-1.457-1.457L11 11"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
                 </svg>
             </div>
-            <h1 class="text-2xl font-bold text-slate-900">Welcome back</h1>
-            <p class="text-slate-500 mt-2">Sign in to manage your social posts</p>
+            <h1 class="text-2xl font-bold text-slate-900">Create Account</h1>
+            <p class="text-slate-500 mt-2">Sign up to start posting</p>
         </div>
 
-        <form action="/login" method="POST" class="p-8 pt-6">
+        <form action="/register" method="POST" class="p-8 pt-6">
             <% if (typeof error !== 'undefined' && error && error.length > 0) { %>
                 <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm flex items-center">
                     <svg class="w-5 h-5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -31,25 +31,31 @@
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Email Address</label>
-                    <input type="email" name="email" required 
+                    <input type="email" name="email" required
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition-all placeholder:text-slate-400"
-                        placeholder="admin@example.com">
+                        placeholder="you@example.com">
                 </div>
                 <div>
                     <label class="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-                    <input type="password" name="password" required 
+                    <input type="password" name="password" required minlength="6"
+                        class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition-all placeholder:text-slate-400"
+                        placeholder="••••••••">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Confirm Password</label>
+                    <input type="password" name="password_confirm" required minlength="6"
                         class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 outline-none transition-all placeholder:text-slate-400"
                         placeholder="••••••••">
                 </div>
             </div>
 
-            <button type="submit" 
+            <button type="submit"
                 class="w-full mt-8 bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-slate-800 transition shadow-lg shadow-slate-200 active:scale-[0.98]">
-                Sign In
+                Create Account
             </button>
 
             <p class="text-center text-sm text-slate-500 mt-6">
-                Don't have an account? <a href="/register" class="text-slate-900 font-semibold hover:underline">Register</a>
+                Already have an account? <a href="/login" class="text-slate-900 font-semibold hover:underline">Sign in</a>
             </p>
         </form>
     </div>

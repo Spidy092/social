@@ -3,28 +3,51 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       
       <!-- Left Column: Media Upload -->
-      <div class="lg:col-span-1">
+      <div class="lg:col-span-1 space-y-4">
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <label class="block text-sm font-semibold text-slate-700 mb-4">Media Content</label>
+          <label class="block text-sm font-semibold text-slate-700 mb-4">Upload Media <span class="text-slate-400 font-normal">(up to 10)</span></label>
           
-          <div id="drop-zone" class="relative group cursor-pointer border-2 border-dashed border-slate-200 rounded-2xl p-4 transition-all hover:border-slate-900 aspect-square flex flex-col items-center justify-center text-center overflow-hidden">
-            <input type="file" name="media" id="media-input" required accept="image/*,video/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+          <div id="drop-zone" class="relative group cursor-pointer border-2 border-dashed border-slate-200 rounded-2xl p-4 transition-all hover:border-slate-900 min-h-[200px] flex flex-col items-center justify-center text-center overflow-hidden">
+            <input type="file" name="media" id="media-input" accept="image/*,video/*" multiple class="absolute inset-0 opacity-0 cursor-pointer z-10">
             
-            <div id="preview-container" class="hidden absolute inset-0 z-0 bg-white">
-                <!-- Preview will be inserted here -->
-            </div>
-
             <div id="upload-prompt" class="space-y-3 z-0">
               <div class="w-12 h-12 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center mx-auto group-hover:bg-slate-900 group-hover:text-white transition">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                 </svg>
               </div>
-              <p class="text-xs font-medium text-slate-500">Click or drag to upload<br>Image or Video (max 500MB)</p>
+              <p class="text-xs font-medium text-slate-500">Click or drag to upload<br>Multiple images/videos (max 10)</p>
             </div>
           </div>
-          <p class="text-[11px] text-slate-400 mt-3 text-center">Supports: JPG, PNG, WEBP, MP4, MOV</p>
+
+          <!-- Preview of selected files -->
+          <div id="file-preview" class="grid grid-cols-3 gap-2 mt-3 hidden"></div>
+          <p class="text-[11px] text-slate-400 mt-3 text-center">JPG, PNG, WEBP, MP4, MOV • Max 500MB each</p>
         </div>
+
+        <!-- Media Library Picker -->
+        <% if (mediaItems && mediaItems.length > 0) { %>
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+          <label class="block text-sm font-semibold text-slate-700 mb-4">Or pick from library</label>
+          <div class="grid grid-cols-3 gap-2 max-h-60 overflow-y-auto">
+            <% mediaItems.forEach(item => { %>
+              <label class="relative cursor-pointer group">
+                <input type="checkbox" name="media_library_ids" value="<%= item.id %>" class="peer sr-only library-item">
+                <div class="aspect-square rounded-lg overflow-hidden border-2 border-transparent peer-checked:border-slate-900 peer-checked:ring-2 peer-checked:ring-slate-900/20 transition">
+                  <% if (item.media_type === 'image') { %>
+                    <img src="<%= item.url %>" class="w-full h-full object-cover" alt="">
+                  <% } else { %>
+                    <div class="w-full h-full bg-slate-100 flex items-center justify-center">
+                      <svg class="w-6 h-6 text-slate-400" fill="currentColor" viewBox="0 0 24 24"><path d="M10 15l5.197-3L10 9v6z"/></svg>
+                    </div>
+                  <% } %>
+                </div>
+                <div class="absolute top-1 right-1 w-5 h-5 bg-slate-900 text-white rounded-full items-center justify-center text-[10px] font-bold hidden peer-checked:flex">✓</div>
+              </label>
+            <% }) %>
+          </div>
+        </div>
+        <% } %>
       </div>
 
       <!-- Right Column: Content & Platforms -->
@@ -47,7 +70,7 @@
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
           <label class="block text-sm font-semibold text-slate-700 mb-6">Select Platforms</label>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            <% ['instagram', 'facebook', 'linkedin', 'youtube'].forEach(p => { %>
+            <% ['instagram', 'facebook', 'linkedin', 'youtube', 'threads'].forEach(p => { %>
                 <label class="relative cursor-pointer group">
                     <input type="checkbox" name="platforms" value="<%= p %>" class="peer sr-only platform-toggle" data-platform="<%= p %>">
                     <div class="h-10 flex items-center justify-center border border-slate-200 rounded-xl peer-checked:border-slate-900 peer-checked:bg-slate-900 peer-checked:text-white transition group-hover:bg-slate-50 peer-checked:group-hover:bg-slate-900">
@@ -59,8 +82,8 @@
 
           <!-- Platform Specific Captions -->
           <div id="platform-captions" class="space-y-6">
-              <% ['instagram', 'facebook', 'linkedin', 'youtube'].forEach(p => { %>
-                <div id="caption-box-<%= p %>" class="hidden platform-caption-box space-y-2 animate-in fade-in slide-in-from-top-2">
+              <% ['instagram', 'facebook', 'linkedin', 'youtube', 'threads'].forEach(p => { %>
+                <div id="caption-box-<%= p %>" class="hidden platform-caption-box space-y-2">
                     <div class="flex items-center space-x-2">
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400"><%= p %> Caption</span>
                     </div>
@@ -93,3 +116,5 @@
     </div>
   </form>
 </div>
+
+

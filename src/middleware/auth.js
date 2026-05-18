@@ -6,7 +6,7 @@ async function requireLogin(req, res, next) {
   }
 
   try {
-    const result = await pool.query('SELECT id, email FROM users WHERE id = $1', [req.session.userId]);
+    const result = await pool.query('SELECT id, email, role FROM users WHERE id = $1', [req.session.userId]);
     if (result.rows.length === 0) {
       req.session.destroy();
       return res.redirect('/login');
@@ -21,4 +21,12 @@ async function requireLogin(req, res, next) {
   }
 }
 
-module.exports = { requireLogin };
+function requireAdmin(req, res, next) {
+  if (req.user && req.user.role === 'admin') {
+    return next();
+  }
+  req.flash('error', 'Admin access required');
+  res.redirect('/');
+}
+
+module.exports = { requireLogin, requireAdmin };

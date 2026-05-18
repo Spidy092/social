@@ -28,7 +28,7 @@ Example: {"instagram": "...", "facebook": "..."}`;
       'X-Title': 'Social Poster App'
     },
     body: JSON.stringify({
-      model: "stepfun/step-3.5-flash:free",
+      model: process.env.OPENROUTER_MODEL || "z-ai/glm-4.5-air:free",
       response_format: { type: "json_object" }, // Ensures better JSON generation if supported
       messages: [
         { role: "system", content: systemPrompt },
@@ -44,6 +44,12 @@ Example: {"instagram": "...", "facebook": "..."}`;
   }
 
   const data = await response.json();
+  
+  if (!data || !data.choices || data.choices.length === 0 || !data.choices[0].message) {
+    console.error('OpenRouter API returned unexpected format:', data);
+    throw new Error('Caption generation failed due to unexpected API response');
+  }
+  
   let content = data.choices[0].message.content.trim();
   
   // Strip markdown backticks if present

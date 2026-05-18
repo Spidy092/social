@@ -4,11 +4,17 @@ const { pool } = require('./index');
 
 async function migrate(retries = 5) {
   try {
-    const migrationPath = path.join(__dirname, 'migrations', '001_initial.sql');
-    const sql = fs.readFileSync(migrationPath, 'utf8');
-    
-    console.log('Running migration: 001_initial.sql...');
-    await pool.query(sql);
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter((file) => file.endsWith('.sql'))
+      .sort();
+
+    for (const file of migrationFiles) {
+      const migrationPath = path.join(migrationsDir, file);
+      const sql = fs.readFileSync(migrationPath, 'utf8');
+      console.log(`Running migration: ${file}...`);
+      await pool.query(sql);
+    }
     console.log('Migration completed successfully.');
     process.exit(0);
   } catch (err) {

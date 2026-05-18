@@ -2,57 +2,79 @@ const axios = require('axios');
 
 const GRAPH_BASE = 'https://graph.facebook.com/v18.0';
 
-/**
- * Get Page ID and Page Access Token
- */
 async function getPageInfo(accessToken) {
   const { data } = await axios.get(`${GRAPH_BASE}/me/accounts`, {
     params: { access_token: accessToken },
   });
-
   if (!data.data || data.data.length === 0) {
-    throw new Error('No Facebook Pages found. Ensure the user has a connected Page.');
+    throw new Error('No Facebook Pages found.');
   }
-
   const page = data.data[0];
   return { pageId: page.id, pageToken: page.access_token };
 }
 
 /**
- * Post content to a Facebook Page
- * @param {object} connection - DB row from platform_connections
- * @param {object} postData - { mediaUrl, mediaType, caption }
- * @returns {{ platformPostId: string }}
+ * Post content to Facebook (single or multi-photo)
+ * @param {object} connection
+ * @param {object} postData - { mediaUrl, mediaType, caption, mediaUrls? }
  */
-async function postContent(connection, { mediaUrl, mediaType, caption }) {
-  const accessToken = connection.access_token;
+async function postContent(connection, { mediaUrl, mediaType, caption, mediaUrls }) {
+  const { pageId, pageToken } = await getPageInfo(connection.access_token);
+  const urls = mediaUrls && mediaUrls.length > 1 ? mediaUrls : null;
 
-  // Step 1: Get Page ID and Page-level token
-  const { pageId, pageToken } = await getPageInfo(accessToken);
-
-  let result;
-
-  if (mediaType === 'video') {
-    // Post video to Page
-    const { data } = await axios.post(`${GRAPH_BASE}/${pageId}/videos`, {
-      file_url: mediaUrl,
-      description: caption,
-      access_token: pageToken,
-    });
-    result = data;
-  } else {
-    // Post image to Page
-    const { data } = await axios.post(`${GRAPH_BASE}/${pageId}/photos`, {
-      url: mediaUrl,
-      caption,
-      access_token: pageToken,
-    });
-    result = data;
+  // Single media
+  if (!urls) {
+    let result;
+    if (mediaType === 'video') {
+      const { data } = await axios.post(`${GRAPH_BASE}/${pageId}/videos`, {
+        file_url: mediaUrl, description: caption, access_token: pageToken,
+      });
+      result = data;
+    } else {
+      const { data } = await axios.post(`${GRAPH_BASE}/${pageId}/photos`, {
+        url: mediaUrl, caption, access_token: pageToken,
+      });
+      result = data;
+    }
+    console.log(`[facebook] Published: ${result.id || result.post_id}`);
+    return { platformPostId: result.id || result.post_id };
   }
 
-  const platformPostId = result.id || result.post_id;
-  console.log(`[facebook] Published: ${platformPostId}`);
-  return { platformPostId };
+  // Multi-photo: upload each as unpublished, then create feed post with attached_media
+  const photoIds = [];
+  for (const item of urls) {
+    if (item.media_type === 'video') continue; // FB multi-post is images only
+    const { data } = await axios.post(`${GRAPH_BASE}/${pageId}/photos`, {
+      url: item.url, published: false, access_token: pageToken,
+    });
+    photoIds.push(data.id);
+  }
+
+  const attachedMedia = photoIds.reduce((acc, id, i) => {
+    acc[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id });
+    return acc;
+  }, {});
+
+  const { data } = await axios.post(`${GRAPH_BASE}/${pageId}/feed`, {
+    message: caption,
+    ...attachedMedia,
+    access_token: pageToken,
+  });
+
+  console.log(`[facebook] Published multi-photo: ${data.id}`);
+  return { platformPostId: data.id };
 }
 
-module.exports = { postContent };
+async function fetchAnalytics(connection, platformPostId) {
+  const { data } = await axios.get(`${GRAPH_BASE}/${platformPostId}`, {
+    params: { fields: 'likes.summary(true),comments.summary(true),shares', access_token: connection.access_token },
+  });
+  return {
+    likes: data.likes?.summary?.total_count || 0,
+    comments: data.comments?.summary?.total_count || 0,
+    shares: data.shares?.count || 0,
+    views: 0, reach: 0,
+  };
+}
+
+module.exports = { postContent, fetchAnalytics };

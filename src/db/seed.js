@@ -16,10 +16,10 @@ async function seed() {
     
     // UPSERT: Insert or update if email exists
     await pool.query(`
-      INSERT INTO users (email, password_hash)
-      VALUES ($1, $2)
+      INSERT INTO users (email, password_hash, role)
+      VALUES ($1, $2, 'admin')
       ON CONFLICT (email) 
-      DO UPDATE SET password_hash = EXCLUDED.password_hash
+      DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'admin'
     `, [email, passwordHash]);
 
     console.log(`Admin user created/updated: ${email}`);
