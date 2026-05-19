@@ -41,13 +41,24 @@ router.get('/', async (req, res) => {
 router.get('/meta/connect', (req, res) => {
   const state = generateState();
   req.session.oauthState = state;
-  const params = new URLSearchParams({
+
+  const paramsData = {
     client_id: process.env.META_APP_ID,
     redirect_uri: process.env.META_REDIRECT_URI,
-    scope: 'instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,pages_manage_posts',
     response_type: 'code',
-    state
-  });
+    state,
+  };
+
+  // Facebook Login for Business apps use a login configuration instead of raw scopes.
+  // Keep scope fallback for older/general Meta apps and local experimentation.
+  if (process.env.META_CONFIG_ID) {
+    paramsData.config_id = process.env.META_CONFIG_ID;
+    paramsData.override_default_response_type = 'true';
+  } else {
+    paramsData.scope = 'public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish';
+  }
+
+  const params = new URLSearchParams(paramsData);
   res.redirect(`https://www.facebook.com/v18.0/dialog/oauth?${params}`);
 });
 
