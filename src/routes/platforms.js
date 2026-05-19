@@ -193,37 +193,45 @@ callbackRouter.get('/meta/callback', async (req, res) => {
       params: { fields: 'id,name', access_token: longToken }
     });
 
-    // Get pages for Facebook posting
+    // Get pages for Facebook posting. Request fields explicitly so we can see why
+    // a connection did or did not become publishable.
     const pagesRes = await axios.get('https://graph.facebook.com/v18.0/me/accounts', {
-      params: { access_token: longToken }
+      params: {
+        fields: 'id,name,access_token,instagram_business_account',
+        access_token: longToken,
+      }
     });
 
+    const pages = pagesRes.data?.data || [];
+    console.log(`[platforms] Meta callback: user=${userRes.data.id}, pages_returned=${pages.length}`);
+
     const userId = req.session.userId;
-    let fbUsername = userRes.data.name || 'Facebook User';
+    let fbUsername = null;
     let igUsername = null;
+    const connected = [];
 
     // Upsert Facebook connection (store longToken as refresh_token for re-exchange)
-    if (pagesRes.data.data && pagesRes.data.data.length > 0) {
-      const page = pagesRes.data.data[0];
+    if (pages.length > 0) {
+      const page = pages[0];
       await db.query(
         `INSERT INTO platform_connections (user_id, platform, access_token, refresh_token, token_expires_at, platform_user_id, platform_username)
          VALUES ($1, 'facebook', $2, $3, $4, $5, $6)
          ON CONFLICT (user_id, platform) DO UPDATE SET
            access_token = $2, refresh_token = $3, token_expires_at = $4, platform_user_id = $5, platform_username = $6`,
-        [userId, page.access_token, longToken, longExpiresAt, page.id, page.name || fbUsername]
+        [userId, page.access_token, longToken, longExpiresAt, page.id, page.name || 'Facebook Page']
       );
+      fbUsername = page.name || 'Facebook Page';
+      connected.push(`Facebook (${fbUsername})`);
     }
 
-    // Get Instagram Business Account linked to page
-    if (pagesRes.data.data && pagesRes.data.data.length > 0) {
-      const page = pagesRes.data.data[0];
+    // Get Instagram Business Account linked to the selected page
+    if (pages.length > 0) {
+      const page = pages[0];
       try {
-        const igRes = await axios.get(`https://graph.facebook.com/v18.0/${page.id}`, {
-          params: { fields: 'instagram_business_account', access_token: page.access_token }
-        });
+        const igAccount = page.instagram_business_account;
 
-        if (igRes.data.instagram_business_account) {
-          const igId = igRes.data.instagram_business_account.id;
+        if (igAccount) {
+          const igId = igAccount.id;
           // Get IG username
           const igUserRes = await axios.get(`https://graph.facebook.com/v18.0/${igId}`, {
             params: { fields: 'id,username', access_token: longToken }
@@ -239,14 +247,18 @@ callbackRouter.get('/meta/callback', async (req, res) => {
           );
         }
       } catch (igErr) {
-        console.warn('[platforms] Could not fetch Instagram business account:', igErr.message);
+        console.warn('[platforms] Could not fetch Instagram business account:', igErr.response?.data || igErr.message);
       }
     }
 
-    const connected = [];
     if (igUsername) connected.push(`Instagram (@${igUsername})`);
-    if (fbUsername) connected.push('Facebook');
-    req.flash('success', `Connected: ${connected.join(' & ')}`);
+
+    if (connected.length === 0) {
+      console.warn('[platforms] Meta callback completed but no publishable Pages were returned. Check Business Login configuration, selected assets, and Page ownership.');
+      req.flash('error', 'Meta login worked, but no Facebook Page was returned. Select a Page in Meta permissions and make sure this Facebook account manages a Page.');
+    } else {
+      req.flash('success', `Connected: ${connected.join(' & ')}`);
+    }
   } catch (err) {
     console.error('[platforms] Meta callback error:', err.response?.data || err.message);
     req.flash('error', 'Failed to connect Meta accounts. Check app credentials.');
