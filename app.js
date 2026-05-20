@@ -62,8 +62,10 @@ const { doubleCsrfProtection, generateToken } = doubleCsrf({
   getSecret: () => process.env.SESSION_SECRET,
   cookieName: '_csrf',
   cookieOptions: { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' },
-  getTokenFromRequest: (req) => req.body?.['_csrf'] || req.query?.['_csrf'] || req.headers['x-csrf-token'] || req.headers['csrf-token'] || '',
+  getTokenFromRequest: (req) => req.body?.['_csrf'] || req.headers['x-csrf-token'] || req.headers['csrf-token'] || '',
+  skipCsrfProtection: (req) => req.method === 'POST' && req.path === '/posts',
 });
+app.set('csrfProtection', doubleCsrfProtection);
 app.use(doubleCsrfProtection);
 
 // Pass variables to all views

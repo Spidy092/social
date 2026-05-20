@@ -33,8 +33,12 @@ function uploadErrorMessage(err) {
   return err.message || 'Upload failed. Please try again.';
 }
 
+function validatePostCsrf(req, res, next) {
+  return req.app.get('csrfProtection')(req, res, next);
+}
+
 // POST /posts (multi-file upload)
-router.post('/posts', handlePostUpload, async (req, res) => {
+router.post('/posts', handlePostUpload, validatePostCsrf, async (req, res) => {
   const files = req.files || [];
   const { caption, platforms, scheduled_at, media_library_ids } = req.body;
 
