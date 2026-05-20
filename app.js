@@ -62,10 +62,8 @@ const { doubleCsrfProtection, generateToken } = doubleCsrf({
   getSecret: () => process.env.SESSION_SECRET,
   cookieName: '_csrf',
   cookieOptions: { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' },
-  getTokenFromRequest: (req) => req.body?.['_csrf'] || req.headers['x-csrf-token'] || req.headers['csrf-token'] || '',
-  skipCsrfProtection: (req) => req.method === 'POST' && req.path === '/posts',
+  getTokenFromRequest: (req) => req.body?._csrf || req.headers['x-csrf-token'],
 });
-app.set('csrfProtection', doubleCsrfProtection);
 app.use(doubleCsrfProtection);
 
 // Pass variables to all views
@@ -132,19 +130,34 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
+  // CSRF token errors — redirect back with a flash message
   if (err.code === 'EBADCSRFTOKEN' || err.message === 'invalid csrf token') {
     req.flash('error', 'Your session expired or the form was invalid. Please try again.');
     const referrer = req.get('Referrer');
-    const safeTarget = (referrer && referrer.startsWith('/') && !referrer.startsWith('//')) ? referrer : '/';
-    return res.redirect(safeTarget);
+    const safe = referrer && referrer.startsWith('/') && !referrer.startsWith('//');
+    return res.redirect(safe ? referrer : '/');
   }
 
-  console.error('Unhandled error:', err);
+  // Log unexpected errors (skip client errors in production)
   const status = err.status || err.statusCode || 500;
+  if (status >= 500) {
+    console.error(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`, err);
+  }
+
+  // JSON response for API-style requests
+  if (req.accepts('json') && !req.accepts('html')) {
+    return res.status(status).json({
+      error: status >= 500 ? 'Internal server error' : err.message,
+    });
+  }
+
+  // HTML response
   res.status(status).render('error', {
     activePage: 'error',
-    title: status === 500 ? 'Something went wrong' : 'Request failed',
-    message: process.env.NODE_ENV === 'production' ? 'Please try again in a moment.' : err.message,
+    title: status >= 500 ? 'Something went wrong' : 'Request failed',
+    message: process.env.NODE_ENV === 'production'
+      ? 'Please try again in a moment.'
+      : err.message,
   });
 });
 
