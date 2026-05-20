@@ -104,8 +104,8 @@ router.post('/posts', handlePostUpload, validatePostCsrf, async (req, res) => {
     }
 
     // Create post (use first media for backward compat)
-    const status = scheduled_at ? 'pending' : 'draft';
-    const dbScheduledAt = scheduled_at ? new Date(scheduled_at) : null;
+    const status = 'pending';
+    const dbScheduledAt = scheduled_at ? new Date(scheduled_at) : new Date();
 
     await withTransaction(async (client) => {
       const { rows: [post] } = await client.query(
@@ -129,14 +129,12 @@ router.post('/posts', handlePostUpload, validatePostCsrf, async (req, res) => {
         );
       }
 
-      if (dbScheduledAt) {
-        await enqueuePublication(post.id, dbScheduledAt, client);
-      }
+      await enqueuePublication(post.id, dbScheduledAt, client);
 
       return post;
     });
 
-    req.flash('success', `Post created with ${allMedia.length} media file(s)!`);
+    req.flash('success', 'Post queued for publishing.');
     res.redirect('/schedule');
   } catch (err) {
     console.error('Post creation error:', err);
