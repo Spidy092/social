@@ -20,9 +20,9 @@ async function enqueuePublication(postId, runAt = new Date(), db = pool, options
          WHEN publication_jobs.status = 'completed' AND NOT $3 THEN publication_jobs.status
          ELSE 'queued'
        END,
-       attempts = CASE WHEN publication_jobs.status = 'completed' AND $3 THEN 0 ELSE publication_jobs.attempts END,
-       locked_at = CASE WHEN publication_jobs.status = 'completed' AND $3 THEN NULL ELSE publication_jobs.locked_at END,
-       lock_owner = CASE WHEN publication_jobs.status = 'completed' AND $3 THEN NULL ELSE publication_jobs.lock_owner END,
+       attempts = CASE WHEN $3 THEN 0 ELSE publication_jobs.attempts END,
+       locked_at = CASE WHEN $3 THEN NULL ELSE publication_jobs.locked_at END,
+       lock_owner = CASE WHEN $3 THEN NULL ELSE publication_jobs.lock_owner END,
        last_error = CASE WHEN $3 THEN NULL ELSE publication_jobs.last_error END,
        updated_at = NOW()`,
     [postId, runAt, force]

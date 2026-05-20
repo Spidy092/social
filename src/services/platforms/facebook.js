@@ -2,9 +2,13 @@ const axios = require('axios');
 
 const GRAPH_BASE = 'https://graph.facebook.com/v18.0';
 
-async function getPageInfo(accessToken) {
+async function getPageInfo(connection) {
+  if (connection.platform_user_id && connection.access_token) {
+    return { pageId: connection.platform_user_id, pageToken: connection.access_token };
+  }
+
   const { data } = await axios.get(`${GRAPH_BASE}/me/accounts`, {
-    params: { access_token: accessToken },
+    params: { access_token: connection.access_token },
   });
   if (!data.data || data.data.length === 0) {
     throw new Error('No Facebook Pages found.');
@@ -19,7 +23,7 @@ async function getPageInfo(accessToken) {
  * @param {object} postData - { mediaUrl, mediaType, caption, mediaUrls? }
  */
 async function postContent(connection, { mediaUrl, mediaType, caption, mediaUrls }) {
-  const { pageId, pageToken } = await getPageInfo(connection.access_token);
+  const { pageId, pageToken } = await getPageInfo(connection);
   const urls = mediaUrls && mediaUrls.length > 1 ? mediaUrls : null;
 
   // Single media

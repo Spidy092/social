@@ -1,6 +1,24 @@
 const { pool } = require('../db');
 const { postToPlatform } = require('./platforms');
 
+function publishErrorMessage(err) {
+  const metaError = err.response?.data?.error;
+  if (metaError?.message) {
+    const code = metaError.code ? ` (code ${metaError.code})` : '';
+    return `${metaError.message}${code}`;
+  }
+
+  if (err.response?.data) {
+    try {
+      return JSON.stringify(err.response.data);
+    } catch (_) {
+      return err.message || 'Unknown publish error';
+    }
+  }
+
+  return err.message || 'Unknown publish error';
+}
+
 async function publishPost(postId) {
   const { rows: [post] } = await pool.query('SELECT * FROM posts WHERE id = $1', [postId]);
   if (!post) throw new Error(`Post ${postId} not found`);
@@ -59,7 +77,7 @@ async function publishPost(postId) {
   const failures = [];
   for (let index = 0; index < results.length; index++) {
     if (results[index].status === 'rejected') {
-      const errorMessage = results[index].reason?.message || 'Unknown publish error';
+      const errorMessage = publishErrorMessage(results[index].reason);
       failures.push(`${platformsToPublish[index]}: ${errorMessage}`);
       await pool.query(
         `INSERT INTO post_results (post_id, platform, status, error_message, posted_at)
