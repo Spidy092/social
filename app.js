@@ -64,7 +64,12 @@ const { doubleCsrfProtection, generateToken } = doubleCsrf({
   cookieOptions: { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' },
   getTokenFromRequest: (req) => req.body?._csrf || req.headers['x-csrf-token'],
 });
-app.use(doubleCsrfProtection);
+// Skip global CSRF for multipart routes (validated after multer parses body)
+app.use((req, res, next) => {
+  if (req.method === 'POST' && req.path === '/posts') return next();
+  return doubleCsrfProtection(req, res, next);
+});
+app.set('csrfProtection', doubleCsrfProtection);
 
 // Pass variables to all views
 app.use((req, res, next) => {
