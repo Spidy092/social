@@ -6,6 +6,8 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const flash = require('connect-flash');
 const methodOverride = require('method-override');
+const cookieParser = require('cookie-parser');
+const { doubleCsrf } = require('csrf-csrf');
 const expressLayouts = require('express-ejs-layouts');
 const { pool } = require('./src/db');
 
@@ -55,12 +57,22 @@ app.use(session({
 // Flash messages
 app.use(flash());
 
+app.use(cookieParser(process.env.SESSION_SECRET));
+const { doubleCsrfProtection, generateToken } = doubleCsrf({
+  getSecret: () => process.env.SESSION_SECRET,
+  cookieName: '_csrf',
+  cookieOptions: { httpOnly: true, sameSite: 'strict', secure: process.env.NODE_ENV === 'production' },
+  getTokenFromRequest: (req) => req.body._csrf || req.headers['x-csrf-token'],
+});
+app.use(doubleCsrfProtection);
+
 // Pass variables to all views
 app.use((req, res, next) => {
   res.locals.success = req.flash('success');
   res.locals.error = req.flash('error');
   res.locals.user = req.user || null;
   res.locals.activePage = 'dashboard'; // Default
+  res.locals.csrfToken = generateToken(req, res);
   next();
 });
 
@@ -106,6 +118,33 @@ app.use('/captions', captionsRoutes);
 app.use('/analytics', analyticsRoutes);
 app.use('/media', mediaRoutes);
 app.use('/admin', requireAdmin, adminRoutes);
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).render('error', {
+    activePage: 'error',
+    title: 'Page not found',
+    message: 'The page you requested could not be found.',
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  if (err.code === 'EBADCSRFTOKEN' || err.message === 'invalid csrf token') {
+    req.flash('error', 'Your session expired or the form was invalid. Please try again.');
+    const referrer = req.get('Referrer');
+    const safeTarget = (referrer && referrer.startsWith('/') && !referrer.startsWith('//')) ? referrer : '/';
+    return res.redirect(safeTarget);
+  }
+
+  console.error('Unhandled error:', err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).render('error', {
+    activePage: 'error',
+    title: status === 500 ? 'Something went wrong' : 'Request failed',
+    message: process.env.NODE_ENV === 'production' ? 'Please try again in a moment.' : err.message,
+  });
+});
 
 // Start scheduler
 const { startScheduler } = require('./src/scheduler/postScheduler');

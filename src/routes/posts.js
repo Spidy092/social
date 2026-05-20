@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const fs = require('fs');
+const { promises: fs } = require('fs');
 const upload = require('../middleware/upload');
-const { uploadFile, deleteFile } = require('../services/cloudinary');
-const { pool } = require('../db');
+const { uploadFile } = require('../services/cloudinary');
+const { pool, withTransaction } = require('../db');
 const { enqueuePublication } = require('../services/publicationQueue');
 const { validateMedia } = require('../services/mediaValidation');
 
@@ -16,8 +16,25 @@ router.get('/upload', async (req, res) => {
   res.render('upload', { activePage: 'upload', mediaItems });
 });
 
+function handlePostUpload(req, res, next) {
+  upload.array('media', 10)(req, res, async (err) => {
+    if (!err) return next();
+
+    await cleanupFiles(req.files || []);
+    const message = uploadErrorMessage(err);
+    req.flash('error', message);
+    return res.redirect('/upload');
+  });
+}
+
+function uploadErrorMessage(err) {
+  if (err.code === 'LIMIT_FILE_SIZE') return 'Upload failed: each file must be 500MB or smaller.';
+  if (err.code === 'LIMIT_FILE_COUNT') return 'Upload failed: select no more than 10 files.';
+  return err.message || 'Upload failed. Please try again.';
+}
+
 // POST /posts (multi-file upload)
-router.post('/posts', upload.array('media', 10), async (req, res) => {
+router.post('/posts', handlePostUpload, async (req, res) => {
   const files = req.files || [];
   const { caption, platforms, scheduled_at, media_library_ids } = req.body;
 
@@ -49,7 +66,7 @@ router.post('/posts', upload.array('media', 10), async (req, res) => {
     const uploadedMedia = [];
     for (const file of files) {
       const result = await uploadFile(file.path);
-      fs.unlinkSync(file.path);
+      await unlinkIfExists(file.path);
 
       const { rows: [item] } = await pool.query(
         `INSERT INTO media_items (user_id, url, public_id, media_type, original_name, file_size)
@@ -86,38 +103,41 @@ router.post('/posts', upload.array('media', 10), async (req, res) => {
     const status = scheduled_at ? 'pending' : 'draft';
     const dbScheduledAt = scheduled_at ? new Date(scheduled_at) : null;
 
-    const { rows: [createdPost] } = await pool.query(`
-      INSERT INTO posts (user_id, media_url, media_type, caption_original, platforms, scheduled_at, status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id
-    `, [
-      req.user.id,
-      allMedia[0].url,
-      allMedia[0].media_type,
-      caption,
-      JSON.stringify(platformsData),
-      dbScheduledAt,
-      status
-    ]);
-
-    // Insert post_media junction rows
-    for (let i = 0; i < allMedia.length; i++) {
-      await pool.query(
-        'INSERT INTO post_media (post_id, media_item_id, position) VALUES ($1, $2, $3)',
-        [createdPost.id, allMedia[i].id, i]
+    await withTransaction(async (client) => {
+      const { rows: [post] } = await client.query(
+        "INSERT INTO posts (user_id, media_url, media_type, caption_original, platforms, scheduled_at, status) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+        [
+          req.user.id,
+          allMedia[0].url,
+          allMedia[0].media_type,
+          caption,
+          JSON.stringify(platformsData),
+          dbScheduledAt,
+          status
+        ]
       );
-    }
 
-    if (dbScheduledAt) {
-      await enqueuePublication(createdPost.id, dbScheduledAt);
-    }
+      // Insert post_media junction rows
+      for (let i = 0; i < allMedia.length; i++) {
+        await client.query(
+          "INSERT INTO post_media (post_id, media_item_id, position) VALUES ($1, $2, $3)",
+          [post.id, allMedia[i].id, i]
+        );
+      }
+
+      if (dbScheduledAt) {
+        await enqueuePublication(post.id, dbScheduledAt, client);
+      }
+
+      return post;
+    });
 
     req.flash('success', `Post created with ${allMedia.length} media file(s)!`);
     res.redirect('/schedule');
   } catch (err) {
     console.error('Post creation error:', err);
     // Cleanup any remaining temp files
-    files.forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+    await cleanupFiles(files);
     req.flash('error', 'Error creating post: ' + err.message);
     res.redirect('/upload');
   }
@@ -169,27 +189,62 @@ router.post('/posts/:id/delete', async (req, res) => {
 router.post('/posts/:id/publish-now', async (req, res) => {
   try {
     const { id } = req.params;
-    const checkResult = await pool.query('SELECT * FROM posts WHERE id = $1 AND user_id = $2', [id, req.user.id]);
-    if (!checkResult.rows[0]) {
-      req.flash('error', 'Post not found.');
-      return res.redirect('/schedule');
-    }
+    const outcome = await withTransaction(async (client) => {
+      const { rows: [post] } = await client.query(
+        'SELECT * FROM posts WHERE id = $1 AND user_id = $2 FOR UPDATE',
+        [id, req.user.id]
+      );
+      if (!post) return 'missing';
+      if (post.status === 'publishing') return 'in_progress';
 
-    await pool.query('UPDATE posts SET status = $1 WHERE id = $2', ['pending', id]);
-    await enqueuePublication(id, new Date());
-    req.flash('success', 'Post queued for publishing.');
+      const platforms = Object.keys(post.platforms || {});
+      const { rows: successfulResults } = await client.query(
+        'SELECT platform FROM post_results WHERE post_id = $1 AND status = $2',
+        [id, 'success']
+      );
+      const successfulPlatforms = new Set(successfulResults.map((row) => row.platform));
+      const remainingPlatforms = platforms.filter((platform) => !successfulPlatforms.has(platform));
+
+      if (remainingPlatforms.length === 0) {
+        await client.query('UPDATE posts SET status = $1, last_error = NULL WHERE id = $2', ['published', id]);
+        return 'already_published';
+      }
+
+      await client.query('UPDATE posts SET status = $1, last_error = NULL WHERE id = $2', ['pending', id]);
+      await enqueuePublication(id, new Date(), client, { force: true });
+      return 'queued';
+    });
+
+    if (outcome === 'missing') req.flash('error', 'Post not found.');
+    else if (outcome === 'in_progress') req.flash('success', 'Post is already being published.');
+    else if (outcome === 'already_published') req.flash('success', 'Post has already been published to all selected platforms.');
+    else req.flash('success', 'Post queued for publishing.');
+
     res.redirect('/schedule');
   } catch (err) {
     console.error('Publish-now error:', err);
-    await pool.query('UPDATE posts SET status = $1 WHERE id = $2 AND user_id = $3', ['failed', req.params.id, req.user.id]);
     req.flash('error', 'Error triggering publish: ' + err.message);
     res.redirect('/schedule');
   }
 });
 
-function cleanupAndRedirect(files, req, res) {
-  files.forEach(f => { if (fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+async function cleanupAndRedirect(files, req, res) {
+  await cleanupFiles(files);
   return res.redirect('/upload');
+}
+
+async function cleanupFiles(files) {
+  await Promise.all((files || []).map((file) => unlinkIfExists(file.path)));
+}
+
+async function unlinkIfExists(filePath) {
+  try {
+    await fs.unlink(filePath);
+  } catch (err) {
+    if (err.code !== 'ENOENT') {
+      console.warn('Temp file cleanup failed:', err.message);
+    }
+  }
 }
 
 module.exports = router;

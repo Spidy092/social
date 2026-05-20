@@ -44,16 +44,22 @@ async function postContent(connection, { mediaUrl, mediaType, caption }) {
     throw new Error('YouTube did not return a resumable upload URL.');
   }
 
-  // Step 2: Download video from Cloudinary and upload to YouTube
+  // Step 2: Stream video from Cloudinary into YouTube to avoid buffering large files in memory.
   const videoResponse = await axios.get(mediaUrl, {
-    responseType: 'arraybuffer',
+    responseType: 'stream',
   });
 
+  const uploadHeaders = {
+    'Content-Type': videoResponse.headers['content-type'] || 'video/mp4',
+  };
+  if (videoResponse.headers['content-length']) {
+    uploadHeaders['Content-Length'] = videoResponse.headers['content-length'];
+  }
+
   const { data: uploadResult } = await axios.put(resumableUploadUrl, videoResponse.data, {
-    headers: {
-      'Content-Type': 'video/mp4',
-      'Content-Length': videoResponse.data.length,
-    },
+    headers: uploadHeaders,
+    maxBodyLength: Infinity,
+    maxContentLength: Infinity,
   });
 
   const videoId = uploadResult.id;

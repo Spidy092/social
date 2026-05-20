@@ -13,6 +13,7 @@ Constraints per platform:
 - facebook: Conversational, encourages interaction, fewer hashtags.
 - linkedin: Professional, value-driven, 3-5 appropriate hashtags.
 - youtube: Detailed description, includes call to action (subscribe/like).
+- threads: Conversational, concise, encourages replies.
 
 RESPOND ONLY WITH VALID JSON. Do not include markdown code block backticks (e.g. \`\`\`json). Just the raw JSON object.
 Example: {"instagram": "...", "facebook": "..."}`;
@@ -61,10 +62,19 @@ Example: {"instagram": "...", "facebook": "..."}`;
 
   try {
     const parsed = JSON.parse(content);
+    const missingPlatforms = platforms.filter((platform) => {
+      const value = parsed?.[platform];
+      return typeof value !== 'string' || value.trim().length === 0;
+    });
+
+    if (missingPlatforms.length > 0) {
+      throw new Error(`Caption generation omitted: ${missingPlatforms.join(', ')}`);
+    }
+
     return parsed;
   } catch (parseError) {
-    console.error('Failed to parse OpenRouter JSON response:', content);
-    throw new Error('Caption generation failed');
+    console.error('Failed to validate OpenRouter JSON response:', parseError.message, content);
+    throw new Error(parseError.message || 'Caption generation failed');
   }
 }
 

@@ -80,4 +80,27 @@ async function postContent(connection, { mediaUrl, mediaType, caption, mediaUrls
   return { platformPostId: published.id };
 }
 
-module.exports = { postContent };
+async function fetchAnalytics(connection, platformPostId) {
+  const { data } = await axios.get(`${THREADS_BASE}/${platformPostId}/insights`, {
+    params: {
+      metric: 'views,likes,replies,reposts,quotes',
+      access_token: connection.access_token,
+    },
+  });
+
+  const metrics = (data.data || []).reduce((acc, item) => {
+    const value = item.values?.[0]?.value ?? item.total_value?.value ?? 0;
+    acc[item.name] = Number(value || 0);
+    return acc;
+  }, {});
+
+  return {
+    likes: metrics.likes || 0,
+    comments: metrics.replies || 0,
+    shares: (metrics.reposts || 0) + (metrics.quotes || 0),
+    views: metrics.views || 0,
+    reach: 0,
+  };
+}
+
+module.exports = { postContent, fetchAnalytics };

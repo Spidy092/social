@@ -50,6 +50,10 @@ async function publishPost(postId) {
        ON CONFLICT DO NOTHING`,
       [post.id, platform, result.platformPostId]
     );
+    await pool.query(
+      'DELETE FROM post_results WHERE post_id = $1 AND platform = $2 AND status = $3',
+      [post.id, platform, 'failed']
+    );
   }));
 
   const failures = [];
@@ -58,8 +62,10 @@ async function publishPost(postId) {
       const errorMessage = results[index].reason?.message || 'Unknown publish error';
       failures.push(`${platformsToPublish[index]}: ${errorMessage}`);
       await pool.query(
-        `INSERT INTO post_results (post_id, platform, status, error_message)
-         VALUES ($1, $2, 'failed', $3)`,
+        `INSERT INTO post_results (post_id, platform, status, error_message, posted_at)
+         VALUES ($1, $2, 'failed', $3, NOW())
+         ON CONFLICT (post_id, platform) WHERE status = 'failed'
+         DO UPDATE SET error_message = EXCLUDED.error_message, posted_at = NOW()`,
         [post.id, platformsToPublish[index], errorMessage]
       );
     }

@@ -1,9 +1,18 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { requireLogin } = require('../middleware/auth');
 const { generateCaptions } = require('../services/openrouter');
 
-router.post('/generate', requireLogin, async (req, res) => {
+const captionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many caption requests. Please try again later.' },
+});
+
+router.post('/generate', captionLimiter, requireLogin, async (req, res) => {
   const { caption, platforms } = req.body;
 
   if (!caption) {

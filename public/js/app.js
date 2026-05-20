@@ -57,7 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const res = await fetch('/captions/generate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                    },
                     body: JSON.stringify({ caption, platforms: selectedPlatforms })
                 });
                 const data = await res.json();

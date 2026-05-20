@@ -1,5 +1,6 @@
 <div class="max-w-5xl mx-auto">
   <form action="/posts" method="POST" enctype="multipart/form-data" class="space-y-8">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
       
       <!-- Left Column: Media Upload -->
@@ -94,9 +95,9 @@
         </div>
 
         <!-- Scheduling -->
-        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 bg-slate-50 text-slate-500 rounded-lg flex items-center justify-center">
+                <div class="w-10 h-10 bg-slate-50 text-slate-500 rounded-lg flex-shrink-0 flex items-center justify-center">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
@@ -106,7 +107,7 @@
                     <p class="text-xs text-slate-500 mt-1">Leave empty to post immediately</p>
                 </div>
             </div>
-            <input type="datetime-local" name="scheduled_at" class="bg-slate-50 px-4 py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-slate-900 transition-all text-sm outline-none">
+            <input type="datetime-local" name="scheduled_at" class="w-full sm:w-auto bg-slate-50 px-4 py-2.5 rounded-xl border border-transparent focus:bg-white focus:border-slate-900 transition-all text-sm outline-none">
         </div>
 
         <button type="submit" class="w-full py-4 bg-slate-900 text-white font-bold rounded-2xl shadow-xl shadow-slate-200 hover:bg-slate-800 hover:translate-y-[-2px] active:translate-y-0 transition-all">

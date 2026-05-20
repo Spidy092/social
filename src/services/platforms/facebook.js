@@ -40,10 +40,18 @@ async function postContent(connection, { mediaUrl, mediaType, caption, mediaUrls
     return { platformPostId: result.id || result.post_id };
   }
 
+  const hasImages = urls.some((item) => item.media_type === 'image');
+  const hasVideos = urls.some((item) => item.media_type === 'video');
+  if (hasImages && hasVideos) {
+    throw new Error('Facebook carousel publishing supports images only. Split mixed image/video posts before publishing to Facebook.');
+  }
+  if (hasVideos) {
+    throw new Error('Facebook multi-video publishing is not supported. Publish one video at a time.');
+  }
+
   // Multi-photo: upload each as unpublished, then create feed post with attached_media
   const photoIds = [];
   for (const item of urls) {
-    if (item.media_type === 'video') continue; // FB multi-post is images only
     const { data } = await axios.post(`${GRAPH_BASE}/${pageId}/photos`, {
       url: item.url, published: false, access_token: pageToken,
     });

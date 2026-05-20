@@ -12,6 +12,14 @@ function generateState() {
   return crypto.randomBytes(16).toString('hex');
 }
 
+function selectMetaPage(pages, target) {
+  if (!pages || pages.length === 0) return null;
+  if (target === 'instagram') {
+    return pages.find((page) => page.instagram_business_account) || pages[0];
+  }
+  return pages[0];
+}
+
 // ─── GET /platforms — list connections ────────────────────
 
 router.get('/', async (req, res) => {
@@ -40,7 +48,9 @@ router.get('/', async (req, res) => {
 
 router.get('/meta/connect', (req, res) => {
   const state = generateState();
+  const target = ['facebook', 'instagram'].includes(req.query.target) ? req.query.target : 'meta';
   req.session.oauthState = state;
+  req.session.metaConnectTarget = target;
 
   const paramsData = {
     client_id: process.env.META_APP_ID,
@@ -206,13 +216,15 @@ callbackRouter.get('/meta/callback', async (req, res) => {
     console.log(`[platforms] Meta callback: user=${userRes.data.id}, pages_returned=${pages.length}`);
 
     const userId = req.session.userId;
+    const target = req.session.metaConnectTarget || 'meta';
+    delete req.session.metaConnectTarget;
     let fbUsername = null;
     let igUsername = null;
     const connected = [];
+    const page = selectMetaPage(pages, target);
 
     // Upsert Facebook connection (store longToken as refresh_token for re-exchange)
-    if (pages.length > 0) {
-      const page = pages[0];
+    if (page) {
       await db.query(
         `INSERT INTO platform_connections (user_id, platform, access_token, refresh_token, token_expires_at, platform_user_id, platform_username)
          VALUES ($1, 'facebook', $2, $3, $4, $5, $6)
@@ -225,8 +237,7 @@ callbackRouter.get('/meta/callback', async (req, res) => {
     }
 
     // Get Instagram Business Account linked to the selected page
-    if (pages.length > 0) {
-      const page = pages[0];
+    if (page) {
       try {
         const igAccount = page.instagram_business_account;
 
@@ -253,7 +264,14 @@ callbackRouter.get('/meta/callback', async (req, res) => {
 
     if (igUsername) connected.push(`Instagram (@${igUsername})`);
 
-    if (connected.length === 0) {
+    if (target === 'instagram' && !igUsername && page) {
+      console.warn('[platforms] Instagram connection requested, but selected page has no instagram_business_account:', {
+        pageId: page.id,
+        pageName: page.name,
+        pagesReturned: pages.length,
+      });
+      req.flash('error', 'Facebook connected, but no linked Instagram Business/Creator account was found. Link Instagram to the selected Facebook Page in Meta, then reconnect Instagram.');
+    } else if (connected.length === 0) {
       console.warn('[platforms] Meta callback completed but no publishable Pages were returned. Check Business Login configuration, selected assets, and Page ownership.');
       req.flash('error', 'Meta login worked, but no Facebook Page was returned. Select a Page in Meta permissions and make sure this Facebook account manages a Page.');
     } else {

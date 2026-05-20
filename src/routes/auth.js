@@ -1,7 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
+const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many authentication attempts. Please try again later.',
+});
 
 // GET /login
 router.get('/login', (req, res) => {
@@ -12,7 +21,7 @@ router.get('/login', (req, res) => {
 });
 
 // POST /login
-router.post('/login', async (req, res) => {
+router.post('/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -48,7 +57,7 @@ router.get('/register', (req, res) => {
 });
 
 // POST /register
-router.post('/register', async (req, res) => {
+router.post('/register', authLimiter, async (req, res) => {
   const { email, password, password_confirm } = req.body;
 
   if (!email || !password) {

@@ -19,6 +19,7 @@
         </div>
 
         <form action="/login" method="POST" class="p-8 pt-6">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <% if (typeof error !== 'undefined' && error && error.length > 0) { %>
                 <div class="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm flex items-center">
                     <svg class="w-5 h-5 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

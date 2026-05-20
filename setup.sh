@@ -68,10 +68,12 @@ if [[ "$PKG_MANAGER" == "apt" ]]; then install_packages_apt; else install_packag
 
 log "Enabling services"
 systemctl enable --now nginx
-if systemctl list-unit-files | grep -q '^postgresql.service'; then
+if systemctl list-unit-files postgresql.service 2>/dev/null | grep -q '^postgresql.service'; then
   systemctl enable --now postgresql
-else
+elif systemctl list-unit-files postgresql-15.service 2>/dev/null | grep -q '^postgresql-15.service'; then
   systemctl enable --now postgresql-15
+else
+  die "PostgreSQL service was not found after installation. Try: sudo systemctl status postgresql"
 fi
 
 log "Creating PostgreSQL user and database"

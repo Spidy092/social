@@ -16,8 +16,7 @@ async function requireLogin(req, res, next) {
     res.locals.user = req.user;
     next();
   } catch (err) {
-    console.error('Auth middleware error:', err);
-    res.status(500).send('Internal Server Error');
+    next(err);
   }
 }
 

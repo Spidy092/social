@@ -4,15 +4,28 @@ const { publishPost } = require('./publishService');
 
 const WORKER_ID = `${os.hostname()}-${process.pid}`;
 
-async function enqueuePublication(postId, runAt = new Date()) {
-  await pool.query(
+async function enqueuePublication(postId, runAt = new Date(), db = pool, options = {}) {
+  const force = Boolean(options.force);
+  await db.query(
     `INSERT INTO publication_jobs (post_id, run_at)
      VALUES ($1, $2)
      ON CONFLICT (post_id) DO UPDATE SET
-       run_at = LEAST(publication_jobs.run_at, EXCLUDED.run_at),
-       status = CASE WHEN publication_jobs.status IN ('completed', 'processing') THEN publication_jobs.status ELSE 'queued' END,
+       run_at = CASE
+         WHEN publication_jobs.status = 'processing' THEN publication_jobs.run_at
+         WHEN $3 THEN EXCLUDED.run_at
+         ELSE LEAST(publication_jobs.run_at, EXCLUDED.run_at)
+       END,
+       status = CASE
+         WHEN publication_jobs.status = 'processing' THEN publication_jobs.status
+         WHEN publication_jobs.status = 'completed' AND NOT $3 THEN publication_jobs.status
+         ELSE 'queued'
+       END,
+       attempts = CASE WHEN publication_jobs.status = 'completed' AND $3 THEN 0 ELSE publication_jobs.attempts END,
+       locked_at = CASE WHEN publication_jobs.status = 'completed' AND $3 THEN NULL ELSE publication_jobs.locked_at END,
+       lock_owner = CASE WHEN publication_jobs.status = 'completed' AND $3 THEN NULL ELSE publication_jobs.lock_owner END,
+       last_error = CASE WHEN $3 THEN NULL ELSE publication_jobs.last_error END,
        updated_at = NOW()`,
-    [postId, runAt]
+    [postId, runAt, force]
   );
 }
 
@@ -30,7 +43,15 @@ async function enqueueDuePosts() {
      SELECT id, COALESCE(scheduled_at, NOW())
      FROM posts
      WHERE status = 'pending' AND scheduled_at <= NOW()
-     ON CONFLICT (post_id) DO NOTHING`
+     ON CONFLICT (post_id) DO UPDATE SET
+       run_at = LEAST(publication_jobs.run_at, EXCLUDED.run_at),
+       status = CASE
+         WHEN publication_jobs.status = 'processing' THEN publication_jobs.status
+         ELSE 'queued'
+       END,
+       locked_at = CASE WHEN publication_jobs.status = 'processing' THEN publication_jobs.locked_at ELSE NULL END,
+       lock_owner = CASE WHEN publication_jobs.status = 'processing' THEN publication_jobs.lock_owner ELSE NULL END,
+       updated_at = NOW()`
   );
 }
 
